@@ -1,13 +1,16 @@
+const express = require('express');
 const WebSocket = require('ws');
+const path = require('path');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const app = express();
+const wss = new WebSocket.Server({ noServer: true });
 
 let clients = [];
 
 wss.on('connection', function connection(ws) {
   console.log('A new client Connected!');
   ws.send(JSON.stringify({type: "connect", payload: "Welcome new client!"}));
-  
+
   let newClient = {
     id: Date.now(),
     ws: ws,
@@ -35,9 +38,21 @@ wss.on('connection', function connection(ws) {
       });
     }
   });
-  
-  ws.on('close', function closing() {
-    console.log('Client disconnected!');
-    clients = clients.filter(client => client.ws !== ws);
+
+  ws.on('close', function close() {
+    clients = clients.filter(client => client.id !== newClient.id);
   });
 });
+
+const server = app.listen(8080, () => {
+  console.log('Listening on http://localhost:8080');
+});
+
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+// Serve the static files in the 'public' directory
+app.use(express.static('public'));
